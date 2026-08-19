@@ -16,7 +16,7 @@ def get_requirements() -> List[str]:
     requirement_lst:List[str]=[]
     try:
         with open('requirements.txt','r') as file:
-            #Read lines from the file
+            #Read lines from
             lines=file.readlines()
             ## Process each line
             for line in lines:
