@@ -52,7 +52,7 @@ python main.py
 python app.py
 \`\`\`
 
-Open http://localhost:8000/docs. `/train` trains and uploads to S3, `/predict` takes a CSV such as `valid_data/test.csv`. Both need your `API_KEY`: click Authorize on the docs page, or send it as an `X-API-Key` header.
+Open http://localhost:8000/docs locally, or http://13.63.139.11:8080/docs for the live app. `/train` trains and uploads to S3, `/predict` takes a CSV such as `valid_data/test.csv`. Both need your `API_KEY`: click Authorize on the docs page, or send it as an `X-API-Key` header.
 
 Run `push_data.py` only to load an empty database, each run inserts the rows again.
 
