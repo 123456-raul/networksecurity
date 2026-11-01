@@ -1,5 +1,6 @@
 import sys
 import os
+import secrets
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -8,7 +9,8 @@ from networksecurity.logging.logger import logging
 from networksecurity.pipeline.training_pipeline import TrainingPipeline
 
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, File, UploadFile,Request
+from fastapi import FastAPI, File, UploadFile,Request,Depends,HTTPException
+from fastapi.security import APIKeyHeader
 from uvicorn import run as app_run
 from fastapi.responses import Response
 from starlette.responses import RedirectResponse
@@ -33,11 +35,18 @@ app.add_middleware(
 from fastapi.templating import Jinja2Templates
 templates = Jinja2Templates(directory="./templates")
 
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def verify_api_key(api_key: str = Depends(api_key_header)):
+    expected = os.getenv("API_KEY")
+    if not expected or not api_key or not secrets.compare_digest(api_key.encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
 @app.get("/", tags=["authentication"])
 async def index():
     return RedirectResponse(url="/docs")
 
-@app.get("/train")
+@app.get("/train", dependencies=[Depends(verify_api_key)])
 def train_route():
     try:
         train_pipeline=TrainingPipeline()
@@ -46,7 +55,7 @@ def train_route():
     except Exception as e:
         raise NetworkSecurityException(e,sys)
     
-@app.post("/predict")
+@app.post("/predict", dependencies=[Depends(verify_api_key)])
 async def predict_route(request: Request,file: UploadFile = File(...)):
     try:
         df=pd.read_csv(file.file)

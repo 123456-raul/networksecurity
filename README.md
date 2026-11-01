@@ -28,4 +28,4 @@ venv/python.exe push_data.py      (run once only, each run inserts the rows agai
 
 venv/python.exe -m uvicorn app:app --port 8000
 
-Open http://localhost:8000/docs. `/train` trains and uploads to S3, `/predict` takes a CSV such as `valid_data/test.csv`.
+Open http://localhost:8000/docs. `/train` trains and uploads to S3, `/predict` takes a CSV such as `valid_data/test.csv`. Both need the `API_KEY` value from `.env`: click Authorize on the docs page, or send it as an `X-API-Key` header.
