@@ -11,6 +11,7 @@ import sys
 import numpy as np
 import pandas as pd
 import pymongo
+import certifi
 from typing import List
 from sklearn.model_selection import train_test_split
 from dotenv import load_dotenv
@@ -33,17 +34,19 @@ class DataIngestion:
         try:
             database_name=self.data_ingestion_config.database_name
             collection_name=self.data_ingestion_config.collection_name
-            self.mongo_client=pymongo.MongoClient(MONGO_DB_URL)
+            self.mongo_client=pymongo.MongoClient(MONGO_DB_URL,tlsCAFile=certifi.where())
             collection=self.mongo_client[database_name][collection_name]
 
             df=pd.DataFrame(list(collection.find()))
+            if df.empty:
+                raise ValueError(f"No data in {database_name}.{collection_name}. Run push_data.py first.")
             if "_id" in df.columns.to_list():
                 df=df.drop(columns=["_id"],axis=1)
             
             df.replace({"na":np.nan},inplace=True)
             return df
         except Exception as e:
-            raise NetworkSecurityException
+            raise NetworkSecurityException(e,sys)
         
     def export_data_into_feature_store(self,dataframe: pd.DataFrame):
         try:
@@ -59,6 +62,11 @@ class DataIngestion:
         
     def split_data_as_train_test(self,dataframe: pd.DataFrame):
         try:
+            ## identical rows in both train and test would inflate the test score
+            rows_before=len(dataframe)
+            dataframe=dataframe.drop_duplicates()
+            logging.info(f"Dropped {rows_before-len(dataframe)} duplicate rows, {len(dataframe)} left")
+
             train_set, test_set = train_test_split(
                 dataframe, test_size=self.data_ingestion_config.train_test_split_ratio
             )
@@ -98,4 +106,4 @@ class DataIngestion:
             return dataingestionartifact
 
         except Exception as e:
-            raise NetworkSecurityException
+            raise NetworkSecurityException(e,sys)

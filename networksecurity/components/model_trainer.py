@@ -26,12 +26,11 @@ from sklearn.ensemble import (
 import mlflow
 from urllib.parse import urlparse
 
-import dagshub
-dagshub.init(repo_owner='123456-raul', repo_name='networksecurity', mlflow=True)
+from dotenv import load_dotenv
+load_dotenv()
 
-os.environ["MLFLOW_TRACKING_URI"]="https://dagshub.com/123456-raul/networksecurity.mlflow"
-os.environ["MLFLOW_TRACKING_USERNAME"]="123456-raul"
-os.environ["MLFLOW_TRACKING_PASSWORD"]="7104284f1bb44ece21e0e2adb4e36a250ae3251f"
+## MLflow reads MLFLOW_TRACKING_USERNAME and MLFLOW_TRACKING_PASSWORD from the environment
+MLFLOW_TRACKING_URI=os.getenv("MLFLOW_TRACKING_URI","https://dagshub.com/123456-raul/networksecurity.mlflow")
 
 
 
@@ -46,7 +45,8 @@ class ModelTrainer:
             raise NetworkSecurityException(e,sys)
         
     def track_mlflow(self,best_model,classificationmetric):
-        mlflow.set_registry_uri("https://dagshub.com/123456-raul/networksecurity.mlflow")
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        mlflow.set_registry_uri(MLFLOW_TRACKING_URI)
         tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
         with mlflow.start_run():
             f1_score=classificationmetric.f1_score
@@ -58,7 +58,6 @@ class ModelTrainer:
             mlflow.log_metric("f1_score",f1_score)
             mlflow.log_metric("precision",precision_score)
             mlflow.log_metric("recall_score",recall_score)
-            mlflow.sklearn.log_model(best_model,"model")
             # Model registry does not work with file store
             if tracking_url_type_store != "file":
 
@@ -66,7 +65,7 @@ class ModelTrainer:
                 # There are other ways to use the Model Registry, which depends on the use case,
                 # please refer to the doc for more information:
                 # https://mlflow.org/docs/latest/model-registry.html#api-workflow
-                mlflow.sklearn.log_model(best_model, "model", registered_model_name=best_model)
+                mlflow.sklearn.log_model(best_model, "model", registered_model_name="NetworkSecurityModel")
             else:
                 mlflow.sklearn.log_model(best_model, "model")
 
@@ -123,14 +122,8 @@ class ModelTrainer:
 
         classification_train_metric=get_classification_score(y_true=y_train,y_pred=y_train_pred)
         
-        ## Track the experiements with mlflow
-        self.track_mlflow(best_model,classification_train_metric)
-
-
         y_test_pred=best_model.predict(x_test)
         classification_test_metric=get_classification_score(y_true=y_test,y_pred=y_test_pred)
-
-        self.track_mlflow(best_model,classification_test_metric)
 
         preprocessor = load_object(file_path=self.data_transformation_artifact.transformed_object_file_path)
             
@@ -138,9 +131,17 @@ class ModelTrainer:
         os.makedirs(model_dir_path,exist_ok=True)
 
         Network_Model=NetworkModel(preprocessor=preprocessor,model=best_model)
-        save_object(self.model_trainer_config.trained_model_file_path,obj=NetworkModel)
+        save_object(self.model_trainer_config.trained_model_file_path,obj=Network_Model)
         #model pusher
         save_object("final_model/model.pkl",best_model)
+
+        ## Track the experiements with mlflow, a tracking outage should not lose the trained model
+        try:
+            self.track_mlflow(best_model,classification_train_metric)
+            self.track_mlflow(best_model,classification_test_metric)
+        except Exception as e:
+            logging.warning(f"MLflow tracking failed: {e}")
+            print(f"MLflow tracking failed: {e}")
         
 
         ## Model Trainer Artifact
