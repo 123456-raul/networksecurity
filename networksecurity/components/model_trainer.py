@@ -65,9 +65,9 @@ class ModelTrainer:
                 # There are other ways to use the Model Registry, which depends on the use case,
                 # please refer to the doc for more information:
                 # https://mlflow.org/docs/latest/model-registry.html#api-workflow
-                mlflow.sklearn.log_model(best_model, "model", registered_model_name="NetworkSecurityModel")
+                mlflow.sklearn.log_model(best_model, "model", registered_model_name="NetworkSecurityModel", serialization_format="cloudpickle")
             else:
-                mlflow.sklearn.log_model(best_model, "model")
+                mlflow.sklearn.log_model(best_model, "model", serialization_format="cloudpickle")
 
 
         
